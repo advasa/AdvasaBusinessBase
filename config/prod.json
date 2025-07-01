@@ -1,0 +1,71 @@
+{
+  "env": "prod",
+  "projectName": "AdvasaBusinessBase",
+  "account": "YOUR_PROD_ACCOUNT_ID",
+  "region": "ap-northeast-1",
+  "profile": "production",
+  "tags": {
+    "Project": "AdvasaBusinessBase",
+    "Environment": "Production",
+    "Owner": "AdvasaTeam",
+    "CostCenter": "Business"
+  },
+  "vpc": {
+    "vpcId": "vpc-prod-existing-id",
+    "privateSubnetIds": ["subnet-prod-private-1", "subnet-prod-private-2"],
+    "publicSubnetIds": ["subnet-prod-public-1", "subnet-prod-public-2"]
+  },
+  "database": {
+    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:secret:advasa-django-db-prod-secret",
+    "host": "advasa-django-prod.cluster-xxxxxx.ap-northeast-1.rds.amazonaws.com",
+    "port": 5432,
+    "name": "advasa_django_prod"
+  },
+  "microservices": {
+    "zenginDataUpdater": {
+      "enabled": true,
+      "lambda": {
+        "runtime": "python3.11",
+        "timeout": 900,
+        "memorySize": 2048,
+        "logRetentionDays": 365,
+        "environment": {
+          "LOG_LEVEL": "INFO",
+          "ENVIRONMENT": "prod"
+        }
+      },
+      "dynamodb": {
+        "diffTableName": "zengin-data-diff-prod",
+        "billingMode": "PAY_PER_REQUEST",
+        "pointInTimeRecovery": true,
+        "removalPolicy": "RETAIN"
+      },
+      "eventbridge": {
+        "dailyScheduleExpression": "cron(0 23 * * ? *)",
+        "schedulerGroupName": "zengin-data-updater-prod"
+      },
+      "slack": {
+        "webhookSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:secret:slack-webhook-prod",
+        "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:secret:slack-signing-secret-prod"
+      }
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "slackNotificationArn": "arn:aws:sns:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:slack-notifications-prod",
+    "cloudWatchDashboard": true,
+    "alerting": {
+      "errorRateThreshold": 5,
+      "latencyThreshold": 30000
+    }
+  },
+  "costOptimization": {
+    "autoScaling": {
+      "minCapacity": 1,
+      "maxCapacity": 10
+    },
+    "enableSpotInstances": false,
+    "cloudWatchMetricsEnabled": true,
+    "reservedCapacity": true
+  }
+}

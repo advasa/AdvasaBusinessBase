@@ -1,0 +1,47 @@
+{
+  "name": "advasa-business-base",
+  "version": "1.0.0",
+  "description": "AWS CDK project for Advasa business microservices - Scalable infrastructure for business logic services",
+  "bin": {
+    "advasa-business-base": "bin/advasa-business-base.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk",
+    "deploy:dev": "cdk deploy --context env=dev '*'",
+    "deploy:stg": "cdk deploy --context env=stg '*'",
+    "deploy:prod": "cdk deploy --context env=prod '*'",
+    "diff:dev": "cdk diff --context env=dev '*'",
+    "diff:stg": "cdk diff --context env=stg '*'",
+    "diff:prod": "cdk diff --context env=prod '*'",
+    "synth:dev": "cdk synth --context env=dev",
+    "synth:stg": "cdk synth --context env=stg",
+    "synth:prod": "cdk synth --context env=prod"
+  },
+  "keywords": [
+    "aws",
+    "cdk",
+    "zengin",
+    "banking",
+    "data-sync",
+    "slack",
+    "microservice"
+  ],
+  "author": "Advasa Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "22.15.29",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.4",
+    "aws-cdk": "2.200.1",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.8.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.200.1",
+    "constructs": "^10.4.2"
+  }
+}

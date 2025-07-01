@@ -1,0 +1,65 @@
+{
+  "env": "dev",
+  "projectName": "AdvasaBusinessBase",
+  "account": "YOUR_DEV_ACCOUNT_ID",
+  "region": "ap-northeast-1",
+  "profile": "default",
+  "tags": {
+    "Project": "AdvasaBusinessBase",
+    "Environment": "Development",
+    "Owner": "AdvasaTeam",
+    "CostCenter": "Business"
+  },
+  "vpc": {
+    "vpcId": "vpc-dev-existing-id",
+    "privateSubnetIds": ["subnet-dev-private-1", "subnet-dev-private-2"],
+    "publicSubnetIds": ["subnet-dev-public-1", "subnet-dev-public-2"]
+  },
+  "database": {
+    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:secret:advasa-django-db-dev-secret",
+    "host": "advasa-django-dev.cluster-xxxxxx.ap-northeast-1.rds.amazonaws.com",
+    "port": 5432,
+    "name": "advasa_django_dev"
+  },
+  "microservices": {
+    "zenginDataUpdater": {
+      "enabled": true,
+      "lambda": {
+        "runtime": "python3.11",
+        "timeout": 300,
+        "memorySize": 512,
+        "logRetentionDays": 14,
+        "environment": {
+          "LOG_LEVEL": "DEBUG",
+          "ENVIRONMENT": "dev"
+        }
+      },
+      "dynamodb": {
+        "diffTableName": "zengin-data-diff-dev",
+        "billingMode": "PAY_PER_REQUEST",
+        "pointInTimeRecovery": false,
+        "removalPolicy": "DESTROY"
+      },
+      "eventbridge": {
+        "dailyScheduleExpression": "cron(0 9 * * ? *)",
+        "schedulerGroupName": "zengin-data-updater-dev"
+      },
+      "slack": {
+        "webhookSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:secret:slack-webhook-dev",
+        "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:secret:slack-signing-secret-dev"
+      }
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "slackNotificationArn": "arn:aws:sns:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:slack-notifications-dev"
+  },
+  "costOptimization": {
+    "autoScaling": {
+      "minCapacity": 0,
+      "maxCapacity": 2
+    },
+    "enableSpotInstances": false,
+    "cloudWatchMetricsEnabled": true
+  }
+}
