@@ -1,60 +1,73 @@
 {
   "env": "stg",
-  "projectName": "ZenginDataUpdater",
-  "account": "YOUR_STG_ACCOUNT_ID",
+  "projectName": "AdvasaBusinessBase",
+  "account": "557690584188",
   "region": "ap-northeast-1",
-  "profile": "staging",
+  "profile": "default",
   "tags": {
-    "Project": "ZenginDataUpdater",
+    "Project": "AdvasaBusinessBase",
     "Environment": "Staging",
     "Owner": "AdvasaTeam",
-    "CostCenter": "Engineering"
+    "CostCenter": "Business"
   },
   "vpc": {
-    "vpcId": "vpc-stg-existing-id",
-    "privateSubnetIds": ["subnet-stg-private-1", "subnet-stg-private-2"],
-    "publicSubnetIds": ["subnet-stg-public-1", "subnet-stg-public-2"]
-  },
+    "vpcId": "vpc-0cc2952e7aa89807d",
+    "privateSubnetIds": [
+      "subnet-06a44d349d1b9ef7a",
+      "subnet-06562f6d27bb19906"
+    ],
+    "publicSubnetIds": [
+      "subnet-0dab2a25e3cc24af4",
+      "subnet-0e9021375d2f4e0f2"
+    ]
+    },
   "database": {
-    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_STG_ACCOUNT_ID:secret:advasa-django-db-stg-secret",
-    "host": "advasa-django-stg.cluster-xxxxxx.ap-northeast-1.rds.amazonaws.com",
+    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:advasa-django-db-stg-secret-riCiU5",
+    "host": "stg-advasa-cluster.cluster-clwhvh7fo6oq.ap-northeast-1.rds.amazonaws.com",
     "port": 5432,
-    "name": "advasa_django_stg"
+    "name": "advasa"
   },
-  "lambda": {
-    "runtime": "python3.11",
-    "timeout": 600,
-    "memorySize": 1024,
-    "logRetentionDays": 30,
-    "environment": {
-      "LOG_LEVEL": "INFO",
-      "ENVIRONMENT": "stg"
+  "microservices": {
+    "zenginDataUpdater": {
+      "enabled": true,
+      "lambda": {
+        "runtime": "python3.11",
+        "timeout": 900,
+        "memorySize": 1024,
+        "logRetentionDays": 14,
+        "environment": {
+          "LOG_LEVEL": "DEBUG",
+          "ENVIRONMENT": "stg"
+        }
+      },
+      "dynamodb": {
+        "diffTableName": "zengin-data-diff-stg",
+        "billingMode": "PAY_PER_REQUEST",
+        "pointInTimeRecovery": false,
+        "removalPolicy": "DESTROY"
+      },
+      "eventbridge": {
+        "dailyScheduleExpression": "cron(0 9 * * ? *)",
+        "_monthlyScheduleExpression": "cron(0 1 1 * ? *)",
+        "schedulerGroupName": "zengin-data-updater-stg"
+      },
+      "slack": {
+        "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:slack-signing-secret-bheKru",
+        "botTokenSecret": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:slack-bot-token-U1f1vY",
+        "channelId": "C093625D0R4"
+      }
     }
-  },
-  "dynamodb": {
-    "diffTableName": "zengin-data-diff-stg",
-    "billingMode": "PAY_PER_REQUEST",
-    "pointInTimeRecovery": true,
-    "removalPolicy": "RETAIN"
-  },
-  "eventbridge": {
-    "dailyScheduleExpression": "cron(0 8 * * ? *)",
-    "schedulerGroupName": "zengin-data-updater-stg"
-  },
-  "slack": {
-    "webhookSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_STG_ACCOUNT_ID:secret:slack-webhook-stg",
-    "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_STG_ACCOUNT_ID:secret:slack-signing-secret-stg"
   },
   "monitoring": {
     "enabled": true,
-    "slackNotificationArn": "arn:aws:sns:ap-northeast-1:YOUR_STG_ACCOUNT_ID:slack-notifications-stg"
+    "slackNotificationArn": ""
   },
   "costOptimization": {
     "autoScaling": {
-      "minCapacity": 1,
-      "maxCapacity": 5
+      "minCapacity": 0,
+      "maxCapacity": 2
     },
-    "enableSpotInstances": true,
+    "enableSpotInstances": false,
     "cloudWatchMetricsEnabled": true
   }
 }

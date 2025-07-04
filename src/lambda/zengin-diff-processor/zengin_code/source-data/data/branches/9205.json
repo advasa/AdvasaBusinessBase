@@ -1,0 +1,30 @@
+{
+  "001":{
+    "code":"001",
+    "name":"本所",
+    "kana":"ホンシヨ",
+    "hira":"ほんしよ",
+    "roma":"honshiyo"
+  },
+  "010":{
+    "code":"010",
+    "name":"中央",
+    "kana":"チユウオウ",
+    "hira":"ちゆうおう",
+    "roma":"chiyuuou"
+  },
+  "050":{
+    "code":"050",
+    "name":"三財",
+    "kana":"サンザイ",
+    "hira":"さんざい",
+    "roma":"sanzai"
+  },
+  "060":{
+    "code":"060",
+    "name":"西米良",
+    "kana":"ニシメラ",
+    "hira":"にしめら",
+    "roma":"nishimera"
+  }
+}

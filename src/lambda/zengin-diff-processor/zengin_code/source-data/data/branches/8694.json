@@ -1,0 +1,23 @@
+{
+  "005":{
+    "code":"005",
+    "name":"本所",
+    "kana":"ホンシヨ",
+    "hira":"ほんしよ",
+    "roma":"honshiyo"
+  },
+  "015":{
+    "code":"015",
+    "name":"宮若",
+    "kana":"ミヤワカ",
+    "hira":"みやわか",
+    "roma":"miyawaka"
+  },
+  "020":{
+    "code":"020",
+    "name":"鞍手",
+    "kana":"クラテ",
+    "hira":"くらて",
+    "roma":"kurate"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "001":{
+    "code":"001",
+    "name":"本店営業部",
+    "kana":"ホンテン",
+    "hira":"ほんてん",
+    "roma":"honten"
+  },
+  "005":{
+    "code":"005",
+    "name":"北東北盛岡",
+    "kana":"キタトウホクモリオカ",
+    "hira":"きたとうほくもりおか",
+    "roma":"kitatouhokumorioka"
+  },
+  "007":{
+    "code":"007",
+    "name":"福島",
+    "kana":"フクシマ",
+    "hira":"ふくしま",
+    "roma":"fukushima"
+  },
+  "011":{
+    "code":"011",
+    "name":"東北",
+    "kana":"トウホク",
+    "hira":"とうほく",
+    "roma":"touhoku"
+  },
+  "100":{
+    "code":"100",
+    "name":"おおぞら",
+    "kana":"オオゾラ",
+    "hira":"おおぞら",
+    "roma":"oozora"
+  }
+}

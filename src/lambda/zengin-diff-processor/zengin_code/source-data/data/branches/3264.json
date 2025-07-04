@@ -1,0 +1,30 @@
+{
+  "001":{
+    "code":"001",
+    "name":"本店",
+    "kana":"ホンテン",
+    "hira":"ほんてん",
+    "roma":"honten"
+  },
+  "002":{
+    "code":"002",
+    "name":"稲田",
+    "kana":"イナダ",
+    "hira":"いなだ",
+    "roma":"inada"
+  },
+  "010":{
+    "code":"010",
+    "name":"帯広中央",
+    "kana":"オビヒロチユウオウ",
+    "hira":"おびひろちゆうおう",
+    "roma":"obihirochiyuuou"
+  },
+  "011":{
+    "code":"011",
+    "name":"西帯広",
+    "kana":"ニシオビヒロ",
+    "hira":"にしおびひろ",
+    "roma":"nishiobihiro"
+  }
+}

@@ -1,0 +1,5 @@
+boto3==1.34.0
+requests==2.31.0
+psycopg2-binary==2.9.9
+slack_sdk==3.27.0
+pytz==2024.1

@@ -1,6 +1,6 @@
 # AdvasaBusinessBase CDK
 
-AWS CDK プロジェクトで、Advasaのビジネスロジックを担うマイクロサービス群をAWS上でコスト効率良く運用するためのインフラストラクチャです。
+AdvasaBusinessBaseは、Advasaのビジネスロジックを担うマイクロサービス群をAWS上でコスト効率良く運用するためのAWS CDKプロジェクトです。
 
 ![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white)
 ![CDK](https://img.shields.io/badge/AWS_CDK-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
@@ -16,7 +16,7 @@ AWS CDK プロジェクトで、Advasaのビジネスロジックを担うマイ
 - [設定](#設定)
 - [デプロイ](#デプロイ)
 - [使用方法](#使用方法)
-- [ディレクトリ構造](#ディレクトリ構造)
+- [ドキュメント](#ドキュメント)
 - [トラブルシューティング](#トラブルシューティング)
 
 ## 🎯 概要
@@ -27,10 +27,11 @@ AdvasaBusinessBaseは、既存のAdvasa基盤システムとは独立したCDK�
 
 - **🔧 拡張性**: 新しいマイクロサービスを簡単に追加可能
 - **🌍 マルチ環境**: dev/stg/prodの環境別デプロイサポート
-- **🔒 セキュリティ**: VPCプライベート配置、最小権限IAM
+- **🔒 セキュリティ**: VPCプライベート配置、最小権限IAM、VPCエンドポイント
 - **💰 コスト最適化**: 適切なリソース設定とタグ管理
-- **📊 監視**: CloudWatch統合とSlack通知
+- **📊 監視**: CloudWatch統合とSlack通知、X-Ray分散トレーシング
 - **🧪 テスト**: 包括的なユニットテスト
+- **🚀 API統合**: API Gateway経由のSlack Events/Interactive API
 
 ## 🏗️ アーキテクチャ
 
@@ -39,17 +40,24 @@ AdvasaBusinessBaseは、既存のAdvasa基盤システムとは独立したCDK�
 ┌─────────────────────────────────────────────────────────────┐
 │                    AdvasaBusinessBase                        │
 ├─────────────────────────────────────────────────────────────┤
-│  📦 Microservices                                           │
+│  📦 Microservices Layer                                     │
 │  ├── 🏦 ZenginDataUpdater (銀行データ同期)                    │
-│  ├── 🔄 [Future Service 1]                                 │
-│  └── 📈 [Future Service 2]                                 │
+│  │   ├── 🔍 Diff Processor Lambda                          │
+│  │   ├── ⚡ Callback Handler Lambda                        │
+│  │   ├── 🚀 Diff Executor Lambda                           │
+│  │   ├── 📢 Slack Events Lambda                            │
+│  │   └── 🔄 Slack Interactive Lambda                       │
+│  └── 📈 [Future Services]                                  │
 ├─────────────────────────────────────────────────────────────┤
 │  🔧 Common Infrastructure                                   │
 │  ├── 🌐 VPC Integration (既存VPCに接続)                      │
+│  ├── 🔗 VPC Endpoints (PrivateLink)                        │
 │  ├── 🗄️ DynamoDB Tables                                     │
 │  ├── ⏰ EventBridge Schedulers                              │
 │  ├── 🔐 Secrets Manager                                     │
-│  └── 📝 CloudWatch Logs                                     │
+│  ├── 🌐 API Gateway                                         │
+│  ├── 📊 CloudWatch Monitoring                               │
+│  └── 📝 Enhanced Logging                                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -63,10 +71,17 @@ AdvasaBusinessBaseは、既存のAdvasa基盤システムとは独立したCDK�
 │  │  ┌──Lambda Functions │  │  ┌──RDS (advasa-django)        │  │
 │  │  │  ├─ Diff Processor│  │  │                             │  │
 │  │  │  ├─ Callback      │  │  │  ┌──Security Groups        │  │
-│  │  │  └─ Executor      │  │  │  │  └─ Database Access     │  │
+│  │  │  ├─ Executor      │  │  │  │  └─ Database Access     │  │
+│  │  │  ├─ Slack Events  │  │  │                             │  │
+│  │  │  └─ Interactive   │  │  │                             │  │
 │  │  │                  │  │  │                             │  │
 │  │  └──DynamoDB Tables  │  │  └─────────────────────────────│  │
 │  └─────────────────────┘  └─────────────────────────────────┘  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │                 VPC Endpoints                               ││
+│  │  ├─ Secrets Manager ├─ CloudWatch Logs ├─ EventBridge     ││
+│  │  ├─ CloudWatch      ├─ EventBridge Scheduler ├─ Lambda    ││
+│  └─────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -84,9 +99,9 @@ AdvasaBusinessBaseは、既存のAdvasa基盤システムとは独立したCDK�
         ↓
  💾 DynamoDB (差分レコード保存) ←┐
         ↓                     │
-     💬 Slack通知               │
-        ↓                     │ Slackインタラクティブ操作
-[👤 ユーザが承認／却下＋スケジュール選択] 
+ 🌐 API Gateway ←─── 💬 Slack通知               │
+        ↓                     │
+[👤 ユーザがSlackで承認／却下＋スケジュール選択] 
         ↓
 ⚡ Lambda② (コールバック受信・スケジュール登録)  
         ↓
@@ -102,38 +117,48 @@ AdvasaBusinessBaseは、既存のAdvasa基盤システムとは独立したCDK�
 #### 🔧 技術スタック
 
 **インフラストラクチャ:**
-- **Lambda Functions**: Python 3.11ランタイム
-- **DynamoDB**: 差分データストレージ（Pay-per-request）
+- **Lambda Functions**: Python 3.11ランタイム (psycopg2レイヤー付き)
+- **DynamoDB**: 差分データストレージ（TTL、GSI付き）
 - **EventBridge**: スケジューリング（日次 + 動的）
 - **Secrets Manager**: 認証情報管理
-- **CloudWatch**: ログ・監視
+- **API Gateway**: Slack Webhook エンドポイント
+- **S3**: 大容量差分データ保存
+- **CloudWatch**: 監視・ログ・アラーム
 
 **主要コンポーネント:**
 
-1. **🔍 Diff Processor Lambda**
+1. **🔍 Diff Processor Lambda** (`src/lambda/zengin-diff-processor/`)
    - 外部全銀データの取得
    - 既存DBデータとの比較
-   - 差分データの保存
+   - 差分データの保存（DynamoDB + S3）
    - Slack通知の送信
 
-2. **⚡ Callback Handler Lambda**
+2. **⚡ Callback Handler Lambda** (`src/lambda/zengin-callback-handler/`)
    - Slackインタラクティブ操作の処理
    - ユーザー承認/却下の処理
-   - スケジューリングの設定
+   - EventBridge Schedulerでのスケジューリング
 
-3. **🚀 Executor Lambda**
+3. **🚀 Executor Lambda** (`src/lambda/zengin-diff-executor/`)
    - 承認された差分の実行
-   - データベース更新
+   - PostgreSQLデータベース更新
    - 完了通知の送信
+
+4. **📢 Slack Events Lambda** (`src/lambda/slack-events/`)
+   - Slack Events API エンドポイント
+   - チャレンジレスポンス処理
+
+5. **🔄 Slack Interactive Lambda** (`src/lambda/slack-interactive/`)
+   - Slack インタラクティブコンポーネント処理
+   - ボタン・セレクト等のユーザー操作処理
 
 ## 🚀 セットアップ
 
 ### 前提条件
 
-- **Node.js 18+** & npm
+- **Node.js 22+** & npm
 - **AWS CLI** (適切な認証情報設定済み)
-- **AWS CDK CLI v2.200.1+**
-- **GitHub CLI** (オプション - デプロイ自動化用)
+- **AWS CDK CLI v2.200.0+**
+- **Docker** (psycopg2レイヤー作成用)
 
 ### 1. リポジトリのクローン
 
@@ -158,6 +183,13 @@ npx cdk bootstrap aws://YOUR_ACCOUNT_ID/ap-northeast-1
 npm run build
 ```
 
+### 4. psycopg2レイヤーの作成
+
+```bash
+cd layers/psycopg2
+./build.sh
+```
+
 ## ⚙️ 設定
 
 ### 環境設定ファイル
@@ -171,95 +203,24 @@ config/
 └── prod.json    # 本番環境設定
 ```
 
-### 必須設定項目
+### 主要設定項目
 
-#### 1. 基本設定
-```json
-{
-  "account": "123456789012",           // AWSアカウントID
-  "region": "ap-northeast-1",          // デプロイリージョン
-  "profile": "your-aws-profile"        // AWS CLIプロファイル
-}
-```
+**基本設定**:
+- AWSアカウントID・リージョン
+- プロジェクト名・環境名
+- タグ設定
 
-#### 2. VPC設定
-```json
-{
-  "vpc": {
-    "vpcId": "vpc-xxxxxxxxx",                    // 既存VPC ID
-    "privateSubnetIds": [                        // プライベートサブネット
-      "subnet-xxxxxxxxx",
-      "subnet-yyyyyyyyy"
-    ],
-    "publicSubnetIds": [                         // パブリックサブネット
-      "subnet-aaaaaaaa",
-      "subnet-bbbbbbbb"
-    ]
-  }
-}
-```
+**VPC設定**:
+- 既存VPC ID
+- プライベート・パブリックサブネットID
 
-#### 3. データベース設定
-```json
-{
-  "database": {
-    "secretArn": "arn:aws:secretsmanager:...",   // DB認証情報
-    "host": "your-db-host.amazonaws.com",
-    "port": 5432,
-    "name": "advasa_database"
-  }
-}
-```
+**マイクロサービス設定**:
+- Lambda設定（メモリ・タイムアウト・環境変数）
+- DynamoDB設定（テーブル名・課金モード・TTL）
+- EventBridge設定（スケジュール式・グループ名）
+- Slack設定（シークレットARN・チャンネルID）
 
-#### 4. マイクロサービス設定
-```json
-{
-  "microservices": {
-    "zenginDataUpdater": {
-      "enabled": true,                           // サービス有効/無効
-      "lambda": {
-        "runtime": "python3.11",
-        "timeout": 300,
-        "memorySize": 512
-      },
-      "slack": {
-        "webhookSecretArn": "arn:aws:secretsmanager:...",
-        "signSecretArn": "arn:aws:secretsmanager:..."
-      }
-    }
-  }
-}
-```
-
-### Secrets Manager の設定
-
-以下のシークレットをAWS Secrets Managerに作成してください：
-
-#### 1. データベース認証情報
-```json
-{
-  "username": "db_user",
-  "password": "db_password",
-  "host": "db-host.amazonaws.com",
-  "port": 5432,
-  "database": "advasa_db"
-}
-```
-
-#### 2. Slack Webhook
-```json
-{
-  "webhookUrl": "https://hooks.slack.com/services/...",
-  "channel": "#alerts"
-}
-```
-
-#### 3. Slack署名シークレット
-```json
-{
-  "signingSecret": "your_slack_signing_secret"
-}
-```
+詳細は [docs/setup.md](docs/setup.md) を参照してください。
 
 ## 🚀 デプロイ
 
@@ -269,7 +230,7 @@ config/
 # 開発環境にデプロイ
 npm run deploy:dev
 
-# ステージング環境にデプロイ
+# ステージング環境にデプロイ  
 npm run deploy:stg
 
 # 本番環境にデプロイ
@@ -278,50 +239,18 @@ npm run deploy:prod
 
 ### 段階的デプロイ
 
-#### 1. 設定確認
 ```bash
-# 設定の検証
+# 1. 設定確認
 npm run synth:dev
-```
 
-#### 2. 差分確認
-```bash
-# デプロイ前の変更確認
+# 2. 差分確認
 npm run diff:dev
-```
 
-#### 3. デプロイ実行
-```bash
-# 特定のスタックのみデプロイ
-npx cdk deploy dev-AdvasaBusinessBase-ZenginDataUpdater --context env=dev
-
-# 全スタックのデプロイ
+# 3. デプロイ実行
 npx cdk deploy --context env=dev "*"
 ```
 
-#### 4. デプロイ後の確認
-```bash
-# スタック状況の確認
-aws cloudformation describe-stacks \
-  --stack-name dev-AdvasaBusinessBase-ZenginDataUpdater
-```
-
-### Lambda関数のコード配置
-
-デプロイ前に、Lambda関数のソースコードを配置してください：
-
-```bash
-# 各Lambda関数のディレクトリに移動してコードを配置
-src/lambda/
-├── zengin-diff-processor/
-│   ├── main.py              # メインハンドラー
-│   ├── requirements.txt     # 依存関係
-│   └── modules/            # 追加モジュール
-├── zengin-callback-handler/
-│   └── main.py
-└── zengin-diff-executor/
-    └── main.py
-```
+**注意**: CLAUDE.mdの指示に従い、デプロイコマンドは自動実行せず、必要なコマンドを提示します。
 
 ## 📖 使用方法
 
@@ -332,7 +261,7 @@ src/lambda/
 # Lambda関数のログ確認
 aws logs tail /aws/lambda/dev-zengin-diff-processor --follow
 
-# 最近のエラーログの確認
+# エラーログの確認
 aws logs filter-log-events \
   --log-group-name /aws/lambda/dev-zengin-diff-processor \
   --filter-pattern "ERROR"
@@ -344,14 +273,7 @@ aws logs filter-log-events \
 aws dynamodb scan --table-name zengin-data-diff-dev
 ```
 
-#### 3. スケジューラーの確認
-```bash
-# EventBridge スケジュールの確認
-aws scheduler list-schedules \
-  --group-name zengin-data-updater-dev
-```
-
-#### 4. 手動実行
+#### 3. 手動実行
 ```bash
 # 差分処理の手動実行
 aws lambda invoke \
@@ -360,21 +282,16 @@ aws lambda invoke \
   response.json
 ```
 
-### モニタリング
+### Slack統合
 
-#### CloudWatch メトリクス
-- Lambda 実行時間・エラー率
-- DynamoDB 読み書きキャパシティ使用率
-- EventBridge ルール実行状況
-
-#### アラート設定
-- Lambda エラー率 > 5%
-- DynamoDB スロットリング発生
-- スケジュールタスク実行失敗
+**設定要素**:
+- Events API エンドポイント: `{API_GATEWAY_URL}/events`
+- Interactive Components エンドポイント: `{API_GATEWAY_URL}/interactive`
+- Bot Token Scopes: `chat:write`, `channels:read`
+- 署名シークレットの設定
 
 ## 🧪 テスト
 
-### ユニットテスト
 ```bash
 # 全テストの実行
 npm test
@@ -382,67 +299,113 @@ npm test
 # カバレッジ付きテスト
 npm run test:coverage
 
-# 特定のテストファイルのみ
+# 特定のテストファイル
 npm test -- config.test.ts
 ```
 
-### 統合テスト
+## 📚 ドキュメント
+
+詳細なドキュメントは `docs/` ディレクトリにあります：
+
+| ドキュメント | 内容 |
+|-------------|------|
+| [docs/architecture.md](docs/architecture.md) | システムアーキテクチャ詳細 |
+| [docs/setup.md](docs/setup.md) | セットアップとコンフィグレーション |
+| [docs/deployment.md](docs/deployment.md) | デプロイメントガイド |
+| [docs/api-reference.md](docs/api-reference.md) | API仕様とエンドポイント |
+| [docs/database-schema.md](docs/database-schema.md) | データベーススキーマ |
+
+## 🛠️ トラブルシューティング
+
+### よくある問題
+
+#### 1. VPC設定エラー
+```
+Error: VPC vpc-xxxxx not found
+```
+**解決方法**: `config/*.json` の `vpcId` が正しいか確認
+
+#### 2. psycopg2 インポートエラー
+```
+Error: No module named 'psycopg2'
+```
+**解決方法**: `layers/psycopg2/build.sh` を実行してレイヤーを再作成
+
+#### 3. Slack署名検証エラー
+```
+Error: Invalid Slack signature
+```
+**解決方法**: Secrets Managerの署名シークレットが正しく設定されているか確認
+
+#### 4. Lambda VPC接続タイムアウト
+```
+Error: Task timed out after X seconds
+```
+**解決方法**: VPCエンドポイントが正しく設定されているか確認、メモリサイズ増加
+
+### デバッグ方法
+
+#### 1. CloudWatch Logs の確認
 ```bash
-# CDKスタックのテスト
-npm test -- zengin-data-updater-stack.test.ts
+# リアルタイムログ監視
+aws logs tail /aws/lambda/FUNCTION_NAME --follow
+
+# エラーログの検索
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/FUNCTION_NAME \
+  --filter-pattern "ERROR"
 ```
 
-### Lambda関数のローカルテスト
-```bash
-# SAM CLI を使用したローカルテスト
-sam local invoke ZenginDiffProcessor \
-  --event events/test-event.json
-```
+#### 2. X-Ray 分散トレーシング
+- Lambda関数の詳細な実行トレースを確認
+- 外部API呼び出し・データベース接続の性能分析
+
+#### 3. CloudWatch メトリクス
+- Lambda実行時間・エラー率
+- DynamoDB読み書きスループット
+- API Gateway レスポンス時間
 
 ## 📁 ディレクトリ構造
 
 ```
 AdvasaBusinessBase/
-├── 📄 README.md                      # このファイル
-├── 📄 CLAUDECODE.md                  # Claude設定
-├── ⚙️ cdk.json                       # CDK設定
-├── 📦 package.json                   # npm設定
-├── 🔧 tsconfig.json                  # TypeScript設定
-├── 🧪 jest.config.js                 # テスト設定
-├── 🚫 .gitignore                     # Git除外設定
-│
-├── 📁 bin/                           # CDKエントリーポイント
+├── bin/                              # CDKエントリーポイント
 │   └── advasa-business-base.ts
-│
-├── 📁 lib/                           # CDKコンストラクト
-│   ├── 📁 common/                    # 共通インフラ
+├── lib/                              # CDKコンストラクト
+│   ├── common/                       # 共通インフラ
 │   │   ├── config.ts                # 設定管理
-│   │   ├── 📁 infrastructure/       # インフラコンポーネント
+│   │   ├── infrastructure/          # インフラコンポーネント
 │   │   │   ├── dynamodb-construct.ts
 │   │   │   ├── eventbridge-construct.ts
-│   │   │   └── secrets-construct.ts
-│   │   └── 📁 networking/           # ネットワーク設定
+│   │   │   ├── secrets-construct.ts
+│   │   │   └── api-gateway-construct.ts
+│   │   ├── monitoring/              # 監視コンポーネント
+│   │   │   ├── cloudwatch-construct.ts
+│   │   │   ├── x-ray-construct.ts
+│   │   │   └── monitoring-stack.ts
+│   │   └── networking/              # ネットワーク設定
 │   │       └── vpc-construct.ts
-│   └── 📁 microservices/           # マイクロサービス
-│       └── 📁 zengin-data-updater/
+│   └── microservices/              # マイクロサービス
+│       └── zengin-data-updater/
 │           ├── lambda-construct.ts
 │           └── zengin-data-updater-stack.ts
-│
-├── 📁 config/                       # 環境設定
+├── src/                             # ソースコード
+│   └── lambda/                      # Lambda関数
+│       ├── common/                  # 共通ユーティリティ
+│       ├── zengin-diff-processor/
+│       ├── zengin-callback-handler/
+│       ├── zengin-diff-executor/
+│       ├── slack-events/
+│       └── slack-interactive/
+├── config/                          # 環境設定
 │   ├── dev.json
 │   ├── stg.json
 │   └── prod.json
-│
-├── 📁 src/                          # ソースコード
-│   └── 📁 lambda/                   # Lambda関数
-│       ├── 📁 zengin-diff-processor/
-│       ├── 📁 zengin-callback-handler/
-│       └── 📁 zengin-diff-executor/
-│
-└── 📁 test/                         # テストファイル
-    ├── setup.ts
-    ├── config.test.ts
-    └── zengin-data-updater-stack.test.ts
+├── layers/                          # Lambda レイヤー
+│   └── psycopg2/
+├── test/                            # テストファイル
+├── docs/                            # ドキュメント
+└── scripts/                         # ユーティリティスクリプト
 ```
 
 ## 🔧 新しいマイクロサービスの追加
@@ -485,103 +448,9 @@ if (config.microservices.newService?.enabled) {
 }
 ```
 
-## 🛠️ トラブルシューティング
-
-### よくある問題
-
-#### 1. VPC設定エラー
-```
-Error: VPC vpc-xxxxx not found
-```
-**解決方法**: `config/*.json` の `vpcId` が正しいか確認
-
-#### 2. IAM権限エラー
-```
-User: xxx is not authorized to perform: xxx
-```
-**解決方法**: AWS CLIプロファイルの権限を確認
-
-#### 3. Lambda パッケージエラー
-```
-Error: Cannot find module 'xxx'
-```
-**解決方法**: `src/lambda/*/` 配下に必要なファイルが配置されているか確認
-
-#### 4. Secrets Manager アクセスエラー
-```
-Error: Secrets Manager secret not found
-```
-**解決方法**: 設定ファイルのSecrets Manager ARNが正しいか確認
-
-### デバッグ方法
-
-#### 1. 詳細ログの有効化
-```bash
-export CDK_DEBUG=true
-npx cdk deploy --context env=dev
-```
-
-#### 2. CloudFormation イベントの確認
-```bash
-aws cloudformation describe-stack-events \
-  --stack-name dev-AdvasaBusinessBase-ZenginDataUpdater
-```
-
-#### 3. Lambda関数のローカルデバッグ
-```bash
-# 環境変数を設定してローカル実行
-export DIFF_TABLE_NAME=zengin-data-diff-dev
-python src/lambda/zengin-diff-processor/main.py
-```
-
-### 復旧手順
-
-#### 1. スタックが失敗した場合
-```bash
-# スタックの削除
-npx cdk destroy dev-AdvasaBusinessBase-ZenginDataUpdater --context env=dev
-
-# 再デプロイ
-npx cdk deploy dev-AdvasaBusinessBase-ZenginDataUpdater --context env=dev
-```
-
-#### 2. Lambda関数のロールバック
-```bash
-# 以前のバージョンの確認
-aws lambda list-versions-by-function \
-  --function-name dev-zengin-diff-processor
-
-# 特定バージョンへのロールバック
-aws lambda update-alias \
-  --function-name dev-zengin-diff-processor \
-  --name LIVE \
-  --function-version 1
-```
-
-## 📚 参考資料
-
-### AWS サービス
-- [AWS CDK Developer Guide](https://docs.aws.amazon.com/cdk/)
-- [AWS Lambda Developer Guide](https://docs.aws.amazon.com/lambda/)
-- [Amazon DynamoDB Developer Guide](https://docs.aws.amazon.com/amazondynamodb/)
-- [Amazon EventBridge User Guide](https://docs.aws.amazon.com/eventbridge/)
-
-### 開発ツール
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [Jest Testing Framework](https://jestjs.io/docs/getting-started)
-- [AWS CLI User Guide](https://docs.aws.amazon.com/cli/)
-
-## 🤝 コントリビューション
-
-1. このリポジトリをフォーク
-2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
-
 ## 📄 ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルを参照してください。
+このプロジェクトはMITライセンスの下で公開されています。
 
 ## 👥 チーム
 

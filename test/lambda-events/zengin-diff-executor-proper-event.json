@@ -1,0 +1,33 @@
+{
+  "version": "0",
+  "id": "87654321-4321-4321-4321-210987654321",
+  "detail-type": "EventBridge Scheduler",
+  "source": "aws.scheduler",
+  "account": "557690584188",
+  "time": "2025-07-02T14:00:00Z",
+  "region": "ap-northeast-1",
+  "detail": {
+    "diff_id": "diff_test_20250702_123456",
+    "approved_by": "U1234567890",
+    "approved_at": "2025-07-02T06:00:00Z",
+    "execution_type": "immediate",
+    "schedule_name": "execute-diff-diff_test_20250702_123456",
+    "diffs": [
+      {
+        "action": "create",
+        "key": "0001-001",
+        "new_data": {
+          "swift_code": "0001",
+          "bank_name": "みずほ銀行",
+          "bank_name_kana": "ミズホギンコウ",
+          "branch_code": "001",
+          "branch_name": "本店",
+          "branch_name_kana": "ホンテン"
+        }
+      }
+    ]
+  },
+  "resources": [
+    "arn:aws:scheduler:ap-northeast-1:557690584188:schedule/zengin-data-updater-dev/execute-diff-diff_test_20250702_123456"
+  ]
+}

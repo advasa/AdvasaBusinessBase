@@ -1,0 +1,141 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+lib/
+
+# CDK outputs
+cdk.out/
+cdk.context.json
+
+# TypeScript compiled files
+*.js
+*.js.map
+*.d.ts
+
+# But keep specific JS config files
+!jest.config.js
+!bin/*.js
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test coverage
+coverage/
+*.lcov
+
+# Temporary files
+tmp/
+temp/
+
+# Lambda deployment packages
+*.zip
+
+# Python cache (for Lambda functions)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# CDK specific
+*.asset
+
+# AWS credentials (should never be committed)
+.aws/
+credentials
+config
+
+# Terraform (if used alongside CDK)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Local test outputs
+test-results/
+junit.xml
+
+# NPM package files
+*.tgz
+
+# Yarn
+yarn.lock
+
+# pnpm
+pnpm-lock.yaml
+
+# Lambda deployment artifacts
+response.json
+*.zip.tmp
+
+# Python virtual environments (for Lambda layers)
+.venv*/
+venv*/
+env*/
+
+# macOS system files
+.DS_Store*
+Thumbs.db
+ehthumbs.db
+
+# Editor and IDE files
+*.swp
+*.swo
+*.tmp
+*~
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# CDK specific files
+*.template.yml
+*.template.yaml
+cdk.context.json.bak
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Docker build artifacts
+.dockerignore.tmp
+
+# Local development files
+local-*.json
+dev-local-*.json
+test-output/
+debug.log

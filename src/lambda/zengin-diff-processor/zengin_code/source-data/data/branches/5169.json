@@ -1,0 +1,37 @@
+{
+  "001":{
+    "code":"001",
+    "name":"本所",
+    "kana":"ホンシヨ",
+    "hira":"ほんしよ",
+    "roma":"honshiyo"
+  },
+  "005":{
+    "code":"005",
+    "name":"加納岩",
+    "kana":"カノイワ",
+    "hira":"かのいわ",
+    "roma":"kanoiwa"
+  },
+  "011":{
+    "code":"011",
+    "name":"塩山",
+    "kana":"エンザン",
+    "hira":"えんざん",
+    "roma":"enzan"
+  },
+  "019":{
+    "code":"019",
+    "name":"笛川",
+    "kana":"テキセン",
+    "hira":"てきせん",
+    "roma":"tekisen"
+  },
+  "023":{
+    "code":"023",
+    "name":"勝沼",
+    "kana":"カツヌマ",
+    "hira":"かつぬま",
+    "roma":"katsunuma"
+  }
+}

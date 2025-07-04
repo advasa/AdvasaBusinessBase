@@ -1,0 +1,18 @@
+{
+  "version": "0",
+  "id": "12345678-1234-1234-1234-123456789012",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "557690584188",
+  "time": "2025-07-02T06:00:00Z",
+  "region": "ap-northeast-1",
+  "detail": {
+    "trigger": "scheduled",
+    "manual": false,
+    "test_mode": true,
+    "environment": "dev"
+  },
+  "resources": [
+    "arn:aws:events:ap-northeast-1:557690584188:rule/zengin-diff-processor-schedule-dev"
+  ]
+}

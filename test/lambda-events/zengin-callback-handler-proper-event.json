@@ -1,0 +1,35 @@
+{
+  "interaction_type": "block_actions",
+  "payload": {
+    "type": "block_actions",
+    "user": {
+      "id": "U1234567890",
+      "name": "testuser",
+      "username": "testuser"
+    },
+    "actions": [
+      {
+        "type": "button",
+        "action_id": "approve_immediate",
+        "block_id": "approval_block",
+        "text": {
+          "type": "plain_text",
+          "text": "Approve (Immediate)"
+        },
+        "value": "diff_id_test_12345",
+        "action_ts": "1672531200.123456"
+      }
+    ],
+    "message": {
+      "type": "message",
+      "user": "B1234567890",
+      "ts": "1672531200.123456",
+      "text": "銀行データ更新の承認をお願いします"
+    },
+    "channel": {
+      "id": "C1234567890",
+      "name": "general"
+    },
+    "response_url": "https://hooks.slack.com/actions/T1234567890/1234567890/abcdef123456"
+  }
+}

@@ -1,9 +1,9 @@
 {
   "env": "prod",
   "projectName": "AdvasaBusinessBase",
-  "account": "YOUR_PROD_ACCOUNT_ID",
+  "account": "557690584188",
   "region": "ap-northeast-1",
-  "profile": "production",
+  "profile": "default",
   "tags": {
     "Project": "AdvasaBusinessBase",
     "Environment": "Production",
@@ -11,15 +11,21 @@
     "CostCenter": "Business"
   },
   "vpc": {
-    "vpcId": "vpc-prod-existing-id",
-    "privateSubnetIds": ["subnet-prod-private-1", "subnet-prod-private-2"],
-    "publicSubnetIds": ["subnet-prod-public-1", "subnet-prod-public-2"]
-  },
+    "vpcId": "vpc-00337dac8ebc6d9c9",
+    "privateSubnetIds": [
+      "subnet-0603329d834fabc5c",
+      "subnet-0187ace90875fc25f"
+    ],
+    "publicSubnetIds": [
+      "subnet-0b58ae43b72ed1e71",
+      "subnet-0e4f6c4c57fccc37f"
+    ]
+    },
   "database": {
-    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:secret:advasa-django-db-prod-secret",
-    "host": "advasa-django-prod.cluster-xxxxxx.ap-northeast-1.rds.amazonaws.com",
+    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:advasa-django-db-prod-secret-Xf7Tyq",
+    "host": "prod-advasa-database-postgresinstance19cdd68a-ymj1pwrm65jo.clwhvh7fo6oq.ap-northeast-1.rds.amazonaws.com",
     "port": 5432,
-    "name": "advasa_django_prod"
+    "name": "advasa"
   },
   "microservices": {
     "zenginDataUpdater": {
@@ -27,45 +33,41 @@
       "lambda": {
         "runtime": "python3.11",
         "timeout": 900,
-        "memorySize": 2048,
-        "logRetentionDays": 365,
+        "memorySize": 1024,
+        "logRetentionDays": 14,
         "environment": {
-          "LOG_LEVEL": "INFO",
+          "LOG_LEVEL": "DEBUG",
           "ENVIRONMENT": "prod"
         }
       },
       "dynamodb": {
         "diffTableName": "zengin-data-diff-prod",
         "billingMode": "PAY_PER_REQUEST",
-        "pointInTimeRecovery": true,
-        "removalPolicy": "RETAIN"
+        "pointInTimeRecovery": false,
+        "removalPolicy": "DESTROY"
       },
       "eventbridge": {
-        "dailyScheduleExpression": "cron(0 23 * * ? *)",
+        "dailyScheduleExpression": "cron(0 9 * * ? *)",
+        "_monthlyScheduleExpression": "cron(0 1 1 * ? *)",
         "schedulerGroupName": "zengin-data-updater-prod"
       },
       "slack": {
-        "webhookSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:secret:slack-webhook-prod",
-        "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:secret:slack-signing-secret-prod"
+        "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:slack-signing-secret-bheKru",
+        "botTokenSecret": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:slack-bot-token-U1f1vY",
+        "channelId": "C093625D0R4"
       }
     }
   },
   "monitoring": {
     "enabled": true,
-    "slackNotificationArn": "arn:aws:sns:ap-northeast-1:YOUR_PROD_ACCOUNT_ID:slack-notifications-prod",
-    "cloudWatchDashboard": true,
-    "alerting": {
-      "errorRateThreshold": 5,
-      "latencyThreshold": 30000
-    }
+    "slackNotificationArn": ""
   },
   "costOptimization": {
     "autoScaling": {
-      "minCapacity": 1,
-      "maxCapacity": 10
+      "minCapacity": 0,
+      "maxCapacity": 2
     },
     "enableSpotInstances": false,
-    "cloudWatchMetricsEnabled": true,
-    "reservedCapacity": true
+    "cloudWatchMetricsEnabled": true
   }
 }

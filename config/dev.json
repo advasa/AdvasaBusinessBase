@@ -1,7 +1,7 @@
 {
   "env": "dev",
   "projectName": "AdvasaBusinessBase",
-  "account": "YOUR_DEV_ACCOUNT_ID",
+  "account": "557690584188",
   "region": "ap-northeast-1",
   "profile": "default",
   "tags": {
@@ -11,23 +11,28 @@
     "CostCenter": "Business"
   },
   "vpc": {
-    "vpcId": "vpc-dev-existing-id",
-    "privateSubnetIds": ["subnet-dev-private-1", "subnet-dev-private-2"],
-    "publicSubnetIds": ["subnet-dev-public-1", "subnet-dev-public-2"]
-  },
+    "vpcId": "vpc-07221a41623db2b5c",
+    "privateSubnetIds": [
+      "subnet-02a7dc49f85cd9404"
+      ],
+      "publicSubnetIds": [
+        "subnet-096c42d039fd7952c",
+        "subnet-01cb0e152d0d89fa9"
+      ]
+    },
   "database": {
-    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:secret:advasa-django-db-dev-secret",
-    "host": "advasa-django-dev.cluster-xxxxxx.ap-northeast-1.rds.amazonaws.com",
+    "secretArn": "arn:aws:secretsmanager:ap-northeast-1:557690584188:secret:advasa-django-db-dev-secret-8DQDEv",
+    "host": "dev-devadvasa-database-postgresinstance19cdd68a-igcvkitncf2j.c52s66qg2vl2.ap-northeast-1.rds.amazonaws.com",
     "port": 5432,
-    "name": "advasa_django_dev"
+    "name": "devadvasa"
   },
   "microservices": {
     "zenginDataUpdater": {
       "enabled": true,
       "lambda": {
         "runtime": "python3.11",
-        "timeout": 300,
-        "memorySize": 512,
+        "timeout": 900,
+        "memorySize": 1024,
         "logRetentionDays": 14,
         "environment": {
           "LOG_LEVEL": "DEBUG",
@@ -42,17 +47,19 @@
       },
       "eventbridge": {
         "dailyScheduleExpression": "cron(0 9 * * ? *)",
+        "_monthlyScheduleExpression": "cron(0 9 1 * ? *)",
         "schedulerGroupName": "zengin-data-updater-dev"
       },
       "slack": {
-        "webhookSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:secret:slack-webhook-dev",
-        "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:secret:slack-signing-secret-dev"
+        "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:557690584188:secret:slack-signing-secret-dev-s6eKQP",
+        "botTokenSecret": "arn:aws:secretsmanager:ap-northeast-1:557690584188:secret:slack-bot-token-dev-B10s9b",
+        "channelId": "C093625D0R4"
       }
     }
   },
   "monitoring": {
     "enabled": true,
-    "slackNotificationArn": "arn:aws:sns:ap-northeast-1:YOUR_DEV_ACCOUNT_ID:slack-notifications-dev"
+    "slackNotificationArn": "arn:aws:sns:ap-northeast-1:557690584188:slack-notifications-dev"
   },
   "costOptimization": {
     "autoScaling": {
