@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from common.slack_client import SlackClient
 import gzip
+from urllib.parse import quote_plus
 
 # AWS clients setup
 dynamodb = boto3.resource('dynamodb')
@@ -91,7 +92,8 @@ class DatabaseClient:
                 database=credentials['database'],
                 user=credentials['username'],
                 password=credentials['password'],
-                connect_timeout=30
+                connect_timeout=30,
+                sslmode="require"
             )
             
             # オートコミットを無効にして手動トランザクション管理

@@ -49,11 +49,21 @@ npm run deploy:prod
 #### Phase 1: インフラストラクチャ
 ```bash
 npx cdk deploy dev-AdvasaBusinessBase-VPC --context env=dev
+npx cdk deploy stg-AdvasaBusinessBase-VPC --context env=stg
+npx cdk deploy prod-AdvasaBusinessBase-VPC --context env=prod
 ```
 
 #### Phase 2: アプリケーション  
 ```bash
 npx cdk deploy dev-AdvasaBusinessBase-ZenginDataUpdater --context env=dev
+npx cdk deploy stg-AdvasaBusinessBase-ZenginDataUpdater --context env=stg
+npx cdk deploy prod-AdvasaBusinessBase-ZenginDataUpdater --context env=prod
+```
+
+#### Phase 3: デプロイ後設定
+```bash
+# 各環境でデプロイ後、データベースセキュリティグループの設定が必要
+# 詳細は「デプロイ後設定」セクションを参照
 ```
 
 ## 🌍 環境別デプロイ
@@ -97,6 +107,87 @@ aws cloudformation continue-update-rollback \
 - **P1 (Critical)**: Lambda error rate > 10%, DynamoDB throttling
 - **P2 (High)**: Lambda error rate > 5%, Lambda duration > 30s  
 - **P3 (Medium)**: Lambda cold starts > 20%, S3 PUT errors
+
+## ⚙️ デプロイ後設定
+
+### データベースセキュリティグループの設定
+
+**重要**: 各環境でのデプロイ後、本システムのデータベースセキュリティグループにLambda関数のセキュリティグループからのアクセスを許可する必要があります。
+
+#### 必要な設定手順
+
+1. **Lambda セキュリティグループIDの取得**
+```bash
+# 環境に応じて env を変更（dev/stg/prod）
+export ENV=dev
+
+# Lambda セキュリティグループIDを取得
+LAMBDA_SG_ID=$(aws ec2 describe-security-groups \
+  --filters "Name=tag:Name,Values=${ENV}-AdvasaBusinessBase-Lambda-SG" \
+  --query 'SecurityGroups[0].GroupId' \
+  --output text)
+
+echo "Lambda Security Group ID: $LAMBDA_SG_ID"
+```
+
+2. **データベースセキュリティグループIDの取得**
+```bash
+# データベースのセキュリティグループIDを取得
+# 実際のデータベースのセキュリティグループ名に置き換えてください
+DB_SG_ID=$(aws ec2 describe-security-groups \
+  --filters "Name=tag:Name,Values=your-database-security-group-name" \
+  --query 'SecurityGroups[0].GroupId' \
+  --output text)
+
+echo "Database Security Group ID: $DB_SG_ID"
+```
+
+3. **インバウンドルールの追加**
+```bash
+# PostgreSQLポート（5432）へのアクセスを許可
+aws ec2 authorize-security-group-ingress \
+  --group-id $DB_SG_ID \
+  --protocol tcp \
+  --port 5432 \
+  --source-group $LAMBDA_SG_ID \
+  --description "Allow Lambda functions to access PostgreSQL database"
+```
+
+#### 環境別設定例
+
+**開発環境 (dev)**
+```bash
+export ENV=dev
+# 上記手順を実行
+```
+
+**ステージング環境 (stg)**
+```bash
+export ENV=stg
+# 上記手順を実行
+```
+
+**本番環境 (prod)**
+```bash
+export ENV=prod
+# 上記手順を実行
+```
+
+#### 設定確認
+
+```bash
+# セキュリティグループのインバウンドルールを確認
+aws ec2 describe-security-groups \
+  --group-ids $DB_SG_ID \
+  --query 'SecurityGroups[0].IpPermissions' \
+  --output table
+```
+
+### 注意事項
+
+- この設定は各環境で1回のみ実行してください
+- 既にルールが存在する場合はエラーになりますが、問題ありません
+- データベースのセキュリティグループ名は実際の環境に応じて調整してください
 
 ## 🔧 運用手順
 

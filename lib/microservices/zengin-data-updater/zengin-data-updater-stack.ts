@@ -245,10 +245,12 @@ export class ZenginDataUpdaterStack extends cdk.Stack {
       SLACK_BOT_TOKEN: zenginConfig.slack.botTokenSecret,
       SLACK_CHANNEL_ID: zenginConfig.slack.channelId,
       S3_BUCKET_NAME: diffDataBucket.bucketName,
-      // VPCエンドポイント直接参照（VPC Constructで作成されたもの）
+      // VPCエンドポイント直接参照（VPC Constructで作成されたもの、dev環境時のみ）
       // 注: Secrets Managerは既存VPCに手動作成済みのエンドポイントを使用するため削除
       // VPC_ENDPOINT_SECRETS_MANAGER: vpcConstruct.vpcEndpoints.secretsManager?.vpcEndpointId || '',
-      VPC_ENDPOINT_CLOUDWATCH_LOGS: vpcConstruct.vpcEndpoints.cloudWatchLogs?.vpcEndpointId || '',
+      ...(config.env === 'dev' && vpcConstruct.vpcEndpoints.cloudWatchLogs ? {
+        VPC_ENDPOINT_CLOUDWATCH_LOGS: vpcConstruct.vpcEndpoints.cloudWatchLogs.vpcEndpointId,
+      } : {}),
       VPC_ENDPOINT_CLOUDWATCH: vpcConstruct.vpcEndpoints.cloudWatch?.vpcEndpointId || '',
       VPC_ENDPOINT_EVENTBRIDGE: vpcConstruct.vpcEndpoints.eventBridge?.vpcEndpointId || '',
       VPC_ENDPOINT_SCHEDULER: vpcConstruct.vpcEndpoints.scheduler?.vpcEndpointId || '',

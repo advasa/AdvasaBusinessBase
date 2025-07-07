@@ -14,6 +14,7 @@ from sqlalchemy import create_engine, text
 from zengin_code import Bank
 import gzip
 import base64
+from urllib.parse import quote_plus
 
 # AWS clients setup
 dynamodb = boto3.resource('dynamodb')
@@ -205,8 +206,24 @@ class DatabaseClient:
         dbname = creds.get("name") or creds.get("dbname") or creds.get("database")
         user = creds.get("username") or creds.get("user")
         password = creds.get("password") or creds.get("secret")
-        db_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}"
-        self._engine = create_engine(db_url, pool_pre_ping=True)
+        
+        # デバッグ用ログ（パスワードの一部をマスク）
+        logger.info(f"Database connection info - Host: {host}, Port: {port}, Database: {dbname}, User: {user}")
+        logger.info(f"Password length: {len(password)}, First 3 chars: {password[:3] if password else 'None'}...")
+        logger.info(f"Password repr: {repr(password[:10])}...")  # 特殊文字確認用
+        logger.info(f"Password ends with: {repr(password[-3:])}")  # 末尾の文字確認
+        
+        # URLエンコードを行わず、connect_argsで直接渡す
+        db_url = f"postgresql+psycopg2://{host}:{port}/{dbname}"
+        self._engine = create_engine(
+            db_url,
+            pool_pre_ping=True,
+            connect_args={
+                "user": user,
+                "password": password,
+                "sslmode": "require"
+            }
+        )
         return self._engine
 
     def get_mbank_data(self) -> List[Dict[str, Any]]:

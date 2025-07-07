@@ -75,6 +75,7 @@ pip-delete-this-directory.txt
 
 # CDK specific
 *.asset
+asset.*/
 
 # AWS credentials (should never be committed)
 .aws/
@@ -101,6 +102,8 @@ pnpm-lock.yaml
 
 # Lambda deployment artifacts
 response.json
+response_*.json
+response_*.json/
 *.zip.tmp
 
 # Python virtual environments (for Lambda layers)

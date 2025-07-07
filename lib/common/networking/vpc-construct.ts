@@ -15,11 +15,13 @@ export class VpcConstruct extends cdk.Stack {
   public readonly lambdaSecurityGroup: ec2.SecurityGroup;
   public readonly databaseSecurityGroup: ec2.SecurityGroup;
   public readonly vpcEndpoints: { [key: string]: ec2.InterfaceVpcEndpoint };
+  private readonly config: Config;
 
   constructor(scope: Construct, id: string, props: VpcConstructProps) {
     super(scope, id, props);
 
     const { config } = props;
+    this.config = config;
 
     // 既存VPCをインポート
     this.vpc = ec2.Vpc.fromLookup(this, 'ImportedVpc', {
@@ -102,16 +104,18 @@ export class VpcConstruct extends cdk.Stack {
       privateDnsEnabled: true, // Lambda API呼び出しにはDNS解決が必要
     });
 
-    // CloudWatch Logs用VPCエンドポイント（CDKで管理、DNS解決有効）
-    endpoints.cloudWatchLogs = new ec2.InterfaceVpcEndpoint(this, 'CloudWatchLogsVpcEndpoint', {
-      vpc: this.vpc,
-      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-      subnets: {
-        subnets: this.privateSubnets,
-      },
-      securityGroups: [this.createVpcEndpointSecurityGroup('CloudWatchLogs')],
-      privateDnsEnabled: true, // ログ出力にはDNS解決が必要
-    });
+    // CloudWatch Logs用VPCエンドポイント（dev環境のみ作成）
+    if (this.config.env === 'dev') {
+      endpoints.cloudWatchLogs = new ec2.InterfaceVpcEndpoint(this, 'CloudWatchLogsVpcEndpoint', {
+        vpc: this.vpc,
+        service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+        subnets: {
+          subnets: this.privateSubnets,
+        },
+        securityGroups: [this.createVpcEndpointSecurityGroup('CloudWatchLogs')],
+        privateDnsEnabled: true, // ログ出力にはDNS解決が必要
+      });
+    }
 
     // CloudWatch (monitoring)用VPCエンドポイント（CDKで管理、DNS解決有効）
     endpoints.cloudWatch = new ec2.InterfaceVpcEndpoint(this, 'CloudWatchVpcEndpoint', {
@@ -229,16 +233,14 @@ export class VpcConstruct extends cdk.Stack {
    * タグを追加
    */
   private addTags(): void {
-    const { config } = this.node.tryGetContext('config') || { config: { env: 'dev', projectName: 'AdvasaBusinessBase' } };
-
     // セキュリティグループにタグを追加
     cdk.Tags.of(this.lambdaSecurityGroup).add('Component', 'SecurityGroup');
     cdk.Tags.of(this.lambdaSecurityGroup).add('Service', 'Lambda');
-    cdk.Tags.of(this.lambdaSecurityGroup).add('Name', `${config.env}-${config.projectName}-Lambda-SG`);
+    cdk.Tags.of(this.lambdaSecurityGroup).add('Name', `${this.config.env}-${this.config.projectName}-Lambda-SG`);
 
     cdk.Tags.of(this.databaseSecurityGroup).add('Component', 'SecurityGroup');
     cdk.Tags.of(this.databaseSecurityGroup).add('Service', 'Database');
-    cdk.Tags.of(this.databaseSecurityGroup).add('Name', `${config.env}-${config.projectName}-Database-SG`);
+    cdk.Tags.of(this.databaseSecurityGroup).add('Name', `${this.config.env}-${this.config.projectName}-Database-SG`);
 
     // VPCエンドポイントにタグを追加
     Object.entries(this.vpcEndpoints).forEach(([name, endpoint]) => {
@@ -251,36 +253,34 @@ export class VpcConstruct extends cdk.Stack {
    * CloudFormation出力
    */
   private createOutputs(): void {
-    const { config } = this.node.tryGetContext('config') || { config: { env: 'dev', projectName: 'AdvasaBusinessBase' } };
-
     new cdk.CfnOutput(this, 'VpcId', {
       value: this.vpc.vpcId,
       description: 'VPC ID',
-      exportName: `${config.env}-${config.projectName}-VpcId`,
+      exportName: `${this.config.env}-${this.config.projectName}-VpcId`,
     });
 
     new cdk.CfnOutput(this, 'PrivateSubnetIds', {
       value: this.privateSubnets.map(subnet => subnet.subnetId).join(','),
       description: 'Private subnet IDs',
-      exportName: `${config.env}-${config.projectName}-PrivateSubnetIds`,
+      exportName: `${this.config.env}-${this.config.projectName}-PrivateSubnetIds`,
     });
 
     new cdk.CfnOutput(this, 'PublicSubnetIds', {
       value: this.publicSubnets.map(subnet => subnet.subnetId).join(','),
       description: 'Public subnet IDs',
-      exportName: `${config.env}-${config.projectName}-PublicSubnetIds`,
+      exportName: `${this.config.env}-${this.config.projectName}-PublicSubnetIds`,
     });
 
     new cdk.CfnOutput(this, 'LambdaSecurityGroupId', {
       value: this.lambdaSecurityGroup.securityGroupId,
       description: 'Lambda security group ID',
-      exportName: `${config.env}-${config.projectName}-LambdaSecurityGroupId`,
+      exportName: `${this.config.env}-${this.config.projectName}-LambdaSecurityGroupId`,
     });
 
     new cdk.CfnOutput(this, 'DatabaseSecurityGroupId', {
       value: this.databaseSecurityGroup.securityGroupId,
       description: 'Database security group ID',
-      exportName: `${config.env}-${config.projectName}-DatabaseSecurityGroupId`,
+      exportName: `${this.config.env}-${this.config.projectName}-DatabaseSecurityGroupId`,
     });
   }
 
