@@ -2,7 +2,7 @@ boto3==1.34.144
 botocore==1.34.144
 requests==2.31.0
 psycopg2-binary==2.9.9
-zengin-code==1.1.0.20250629
+# zengin-codeは実行時に動的インストールするため除外
 SQLAlchemy==2.0.30
 slack_sdk==3.27.0
 pytz==2024.1

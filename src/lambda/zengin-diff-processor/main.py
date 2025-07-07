@@ -11,19 +11,71 @@ from common.monitoring_utils import lambda_handler_wrapper, performance_timer
 import unicodedata
 import hashlib
 from sqlalchemy import create_engine, text
-from zengin_code import Bank
 import gzip
 import base64
 from urllib.parse import quote_plus
+
+# zengin-codeの動的管理
+from package_manager import ZenginCodeManager
+
+
+# Configure logging - will be replaced by monitoring wrapper
+logger = logging.getLogger()
+logger.setLevel(os.getenv('LOG_LEVEL', 'INFO'))
+
+# SlackClientの初期インポート（通知用）
+try:
+    # 既存のSlackClientインスタンスがあれば利用
+    slack_client_for_update = SlackClient() if os.getenv('SLACK_BOT_TOKEN') else None
+except Exception as e:
+    logger.warning(f"更新通知用SlackClient初期化スキップ: {str(e)}")
+    slack_client_for_update = None
+
+# zengin-codeを動的にインポート
+zengin_manager = ZenginCodeManager(slack_client=slack_client_for_update)
+success, error_message = zengin_manager.ensure_latest_version()
+
+if success:
+    from zengin_code import Bank
+    logger.info("zengin-codeのインポートに成功しました")
+else:
+    # エラーメッセージがある場合は詳細を記録
+    if error_message:
+        logger.error(f"zengin-code管理エラー: {error_message}")
+    
+    # 既存バージョンで継続を試みる
+    try:
+        from zengin_code import Bank
+        logger.warning("既存のzengin-codeバージョンで処理を継続します")
+    except ImportError as e:
+        # クリティカルエラー: zengin-codeが全く利用できない
+        error_msg = f"zengin-codeのインポートに失敗しました: {str(e)}"
+        logger.critical(error_msg)
+        
+        # Slack通知を試みる
+        if slack_client_for_update:
+            try:
+                slack_client_for_update.post_message(
+                    text="🚨 クリティカルエラー: zengin-codeが利用できません",
+                    blocks=[
+                        {
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": f"Lambda関数の実行を継続できません:\n```{error_msg}```"
+                            }
+                        }
+                    ]
+                )
+            except:
+                pass
+        
+        raise ImportError(error_msg)
 
 # AWS clients setup
 dynamodb = boto3.resource('dynamodb')
 secrets_manager = boto3.client('secretsmanager')
 s3 = boto3.client('s3')
-
-# Configure logging - will be replaced by monitoring wrapper
-logger = logging.getLogger()
-logger.setLevel(os.getenv('LOG_LEVEL', 'INFO'))
 
 # Environment variables
 DIFF_TABLE_NAME = os.getenv('DIFF_TABLE_NAME')
@@ -647,6 +699,15 @@ def handler(event: Dict[str, Any], context: Any, logger, metrics) -> Dict[str, A
         from datetime import datetime, timezone
         execution_id = str(uuid.uuid4())[:8]
         logger.info(f"差分処理を開始 [実行ID: {execution_id}]", event_type="function_start", event_data=event, execution_id=execution_id)
+        
+        # zengin-codeのバージョン情報をログ出力
+        try:
+            import zengin_code
+            zengin_version = getattr(zengin_code, '__version__', 'unknown')
+            logger.info(f"zengin-codeバージョン: {zengin_version}", execution_id=execution_id)
+            metrics.emit_business_metric('ZenginCodeVersion', {'version': zengin_version})
+        except Exception as e:
+            logger.warning(f"zengin-codeバージョン情報取得エラー: {str(e)}", execution_id=execution_id)
         
         # 実行ロックを確認・設定（重複実行防止）
         lock_key = f"diff-processor-lock-{datetime.now(timezone.utc).strftime('%Y-%m-%d-%H')}"
