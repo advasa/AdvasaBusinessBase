@@ -54,7 +54,10 @@
       "slack": {
         "signSecretArn": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:slack-signing-secret-bheKru",
         "botTokenSecret": "arn:aws:secretsmanager:ap-northeast-1:349608912449:secret:slack-bot-token-U1f1vY",
-        "channelId": "C093625D0R4"
+        "channelId": "C093625D0R4",
+        "allowedTeamIds": ["TTH8QUXJ4"],
+        "authorizedUserIds": ["UUMHS10R4", "UTPDA36LW", "U0138F8JE0Z", "U083359LNGM"],
+        "auditTableName": "zengin-security-audit-stg"
       }
     }
   },

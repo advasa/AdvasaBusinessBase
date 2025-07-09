@@ -259,12 +259,6 @@ class DatabaseClient:
         user = creds.get("username") or creds.get("user")
         password = creds.get("password") or creds.get("secret")
         
-        # デバッグ用ログ（パスワードの一部をマスク）
-        logger.info(f"Database connection info - Host: {host}, Port: {port}, Database: {dbname}, User: {user}")
-        logger.info(f"Password length: {len(password)}, First 3 chars: {password[:3] if password else 'None'}...")
-        logger.info(f"Password repr: {repr(password[:10])}...")  # 特殊文字確認用
-        logger.info(f"Password ends with: {repr(password[-3:])}")  # 末尾の文字確認
-        
         # URLエンコードを行わず、connect_argsで直接渡す
         db_url = f"postgresql+psycopg2://{host}:{port}/{dbname}"
         self._engine = create_engine(
@@ -403,20 +397,49 @@ class DiffDetector:
         try:
             # 現在のMBankデータを取得
             current_data = self.db_client.get_mbank_data()
-            current_dict = {f"{item['swift_code']}-{item['branch_code']}": item 
-                           for item in current_data}
+            
+            # 重複チェック - すべてのレコードをグループ化
+            current_grouped = {}
+            for item in current_data:
+                key = f"{item['swift_code']}-{item['branch_code']}"
+                if key not in current_grouped:
+                    current_grouped[key] = []
+                current_grouped[key].append(item)
+            
+            # 重複をチェック
+            duplicates_found = []
+            for key, items in current_grouped.items():
+                if len(items) > 1:
+                    duplicates_found.append({
+                        'key': key,
+                        'swift_code': items[0]['swift_code'],
+                        'branch_code': items[0]['branch_code'],
+                        'items': items,
+                        'count': len(items)
+                    })
+            
+            # 重複が見つかった場合は警告を出す
+            if duplicates_found:
+                logger.error(f"重大なエラー: MBankデータに重複が見つかりました: {len(duplicates_found)}件")
+                for dup in duplicates_found[:5]:  # 最初の5件のみログ出力
+                    bank_names = [item['bank_name'] for item in dup['items']]
+                    branch_names = [item['branch_name'] for item in dup['items']]
+                    logger.error(f"重複: {dup['key']} - 件数: {dup['count']}, 銀行名: {bank_names}, 支店名: {branch_names}")
+            
+            logger.info(f"MBankデータ件数: {len(current_data)} (ユニークキー数: {len(current_grouped)})")
             
             # zengin-codeから最新データを取得
             latest_data = self.zengin_client.get_all_banks()
             latest_dict = {f"{item.swift_code}-{item.branch_code}": item 
                           for item in latest_data}
+            logger.info(f"zengin-codeデータ件数: {len(latest_dict)}")
             
             diffs = []
             bank_codes_for_impact = []  # 影響統計が必要な銀行コードのリスト
             
             # 新規追加と更新を検出
             for key, new_item in latest_dict.items():
-                if key not in current_dict:
+                if key not in current_grouped:
                     # 新規追加
                     diff = BankDiff(
                         action="create",
@@ -426,25 +449,57 @@ class DiffDetector:
                     )
                     diffs.append(diff)
                 else:
-                    # 更新チェック
-                    current_item = current_dict[key]
-                    if self._is_data_different(current_item, new_item):
-                        old_data = BankData(**current_item)
-                        diff = BankDiff(
-                            action="update",
-                            key=key,
-                            old_data=old_data,
-                            new_data=new_item,
-                            total_accounts=0,  # 後で一括更新
-                            active_users=0  # 後で一括更新
-                        )
-                        diffs.append(diff)
-                        bank_codes_for_impact.append((new_item.swift_code, new_item.branch_code))
+                    # 重複レコードがある場合
+                    if len(current_grouped[key]) > 1:
+                        # 重複している各レコードをzengin-codeと比較
+                        has_diff = False
+                        diff_items = []
+                        
+                        for item in current_grouped[key]:
+                            if self._is_data_different(item, new_item):
+                                has_diff = True
+                                diff_items.append(item)
+                        
+                        if has_diff:
+                            # 重複レコードの中に差分があるものが存在
+                            logger.warning(f"重複レコード内で差分を検出: {key} - 重複数: {len(current_grouped[key])}, 差分数: {len(diff_items)}")
+                            for item in diff_items:
+                                logger.debug(f"  差分レコード: {item['bank_name']}/{item['branch_name']} -> {new_item.bank_name}/{new_item.branch_name}")
+                            
+                            # 最初の差分レコードを代表として使用
+                            old_data = BankData(**diff_items[0])
+                            diff = BankDiff(
+                                action="update",
+                                key=key,
+                                old_data=old_data,
+                                new_data=new_item,
+                                total_accounts=0,
+                                active_users=0
+                            )
+                            diffs.append(diff)
+                            bank_codes_for_impact.append((new_item.swift_code, new_item.branch_code))
+                    else:
+                        # 更新チェック（重複がない場合）
+                        current_item = current_grouped[key][0]  # 単一レコード
+                        if self._is_data_different(current_item, new_item):
+                            logger.debug(f"差分検出: {key} - 現在: {current_item['bank_name']}/{current_item['branch_name']} -> 新規: {new_item.bank_name}/{new_item.branch_name}")
+                            old_data = BankData(**current_item)
+                            diff = BankDiff(
+                                action="update",
+                                key=key,
+                                old_data=old_data,
+                                new_data=new_item,
+                                total_accounts=0,  # 後で一括更新
+                                active_users=0  # 後で一括更新
+                            )
+                            diffs.append(diff)
+                            bank_codes_for_impact.append((new_item.swift_code, new_item.branch_code))
             
             # 削除を検出
-            for key, current_item in current_dict.items():
+            for key, items in current_grouped.items():
                 if key not in latest_dict:
-                    old_data = BankData(**current_item)
+                    # 削除対象（重複があっても削除として扱う）
+                    old_data = BankData(**items[0])  # 最初のレコードを代表として使用
                     diff = BankDiff(
                         action="delete",
                         key=key,
@@ -455,6 +510,8 @@ class DiffDetector:
                     )
                     diffs.append(diff)
                     bank_codes_for_impact.append((old_data.swift_code, old_data.branch_code))
+                    if len(items) > 1:
+                        logger.warning(f"削除対象に重複レコードあり: {key} - 重複数: {len(items)}")
             
             # 影響統計を一括取得
             if bank_codes_for_impact:
@@ -705,7 +762,8 @@ def handler(event: Dict[str, Any], context: Any, logger, metrics) -> Dict[str, A
             import zengin_code
             zengin_version = getattr(zengin_code, '__version__', 'unknown')
             logger.info(f"zengin-codeバージョン: {zengin_version}", execution_id=execution_id)
-            metrics.emit_business_metric('ZenginCodeVersion', {'version': zengin_version})
+            # バージョン情報をディメンションとして送信
+            metrics.emit_business_metric('ZenginCodeVersionCheck', 1, {'Version': zengin_version})
         except Exception as e:
             logger.warning(f"zengin-codeバージョン情報取得エラー: {str(e)}", execution_id=execution_id)
         

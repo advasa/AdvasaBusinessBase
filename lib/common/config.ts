@@ -73,6 +73,9 @@ export interface SlackConfig {
   signSecretArn: string;
   botTokenSecret?: string;
   channelId?: string;
+  allowedTeamIds?: string[];
+  authorizedUserIds?: string[];
+  auditTableName?: string;
 }
 
 export interface MonitoringConfig {

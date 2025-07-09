@@ -3,6 +3,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as path from 'path';
 import { Construct } from 'constructs';
 import { Config } from '../../common/config';
@@ -20,6 +21,7 @@ export interface ZenginDataUpdaterStackProps extends cdk.StackProps {
 
 export class ZenginDataUpdaterStack extends cdk.Stack {
   public readonly diffTable: DynamoDBConstruct;
+  public readonly auditTable: DynamoDBConstruct;
   public readonly eventBridge: EventBridgeConstruct;
   public readonly apiGateway: ApiGatewayConstruct;
   public readonly diffProcessorFunction: LambdaConstruct;
@@ -44,6 +46,21 @@ export class ZenginDataUpdaterStack extends cdk.Stack {
 
     // DynamoDB差分テーブルを作成
     this.diffTable = this.createDiffTable(config, zenginConfig);
+
+    // 監査ログ用DynamoDBテーブルを作成
+    // 注: stg環境では既存のテーブルを使用
+    if (config.env === 'stg' && zenginConfig.slack.auditTableName === 'zengin-security-audit-stg') {
+      // 既存のテーブルをインポート
+      const existingTable = dynamodb.Table.fromTableName(this, 'ImportedAuditTable', 'zengin-security-audit-stg');
+      const construct = new Construct(this, 'AuditTable');
+      (construct as any).table = existingTable;
+      (construct as any).tableArn = existingTable.tableArn;
+      (construct as any).tableName = existingTable.tableName;
+      (construct as any).grantWriteData = (grantee: iam.IGrantable) => existingTable.grantWriteData(grantee);
+      this.auditTable = construct as DynamoDBConstruct;
+    } else {
+      this.auditTable = this.createAuditTable(config, zenginConfig);
+    }
 
     // S3バケットを作成（大きな差分データ用）
     this.diffDataBucket = this.createDiffDataBucket(config);
@@ -129,6 +146,70 @@ export class ZenginDataUpdaterStack extends cdk.Stack {
   }
 
   /**
+   * 監査ログ用DynamoDBテーブルを作成またはインポート
+   */
+  private createAuditTable(config: Config, zenginConfig: any): DynamoDBConstruct {
+    const tableName = zenginConfig.slack.auditTableName || `zengin-security-audit-${config.env}`;
+    
+    // 環境変数で既存テーブルの使用を制御
+    const useExistingTable = process.env.USE_EXISTING_AUDIT_TABLE === 'true';
+    
+    if (useExistingTable) {
+      // 既存のテーブルをインポート
+      const existingTable = dynamodb.Table.fromTableName(this, 'ImportedAuditTable', tableName);
+      
+      // DynamoDBConstructのような形式で返す
+      const construct = new Construct(this, 'AuditTable');
+      (construct as any).table = existingTable;
+      (construct as any).tableArn = existingTable.tableArn;
+      (construct as any).tableName = existingTable.tableName;
+      (construct as any).grantWriteData = (grantee: iam.IGrantable) => existingTable.grantWriteData(grantee);
+      
+      console.log(`Using existing DynamoDB table: ${tableName}`);
+      return construct as DynamoDBConstruct;
+    }
+    
+    // 新規作成
+    return new DynamoDBConstruct(this, 'AuditTable', {
+      config,
+      tableName,
+      partitionKey: {
+        name: 'id',
+        type: dynamodb.AttributeType.STRING,
+      },
+      globalSecondaryIndexes: [
+        {
+          indexName: 'UserIndex',
+          partitionKey: {
+            name: 'user_id',
+            type: dynamodb.AttributeType.STRING,
+          },
+          sortKey: {
+            name: 'timestamp',
+            type: dynamodb.AttributeType.STRING,
+          },
+        },
+        {
+          indexName: 'EventTypeIndex',
+          partitionKey: {
+            name: 'event_type',
+            type: dynamodb.AttributeType.STRING,
+          },
+          sortKey: {
+            name: 'timestamp',
+            type: dynamodb.AttributeType.STRING,
+          },
+        },
+      ],
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecovery: true,  // 監査ログは重要なので必ず有効化
+      removalPolicy: cdk.RemovalPolicy.RETAIN,  // 監査ログは削除しない
+      enableTtl: true,
+      ttlAttributeName: 'ttl',
+    });
+  }
+
+  /**
    * S3バケットを作成（差分データ保存用）
    */
   private createDiffDataBucket(config: Config): s3.Bucket {
@@ -191,8 +272,12 @@ export class ZenginDataUpdaterStack extends cdk.Stack {
       method: 'POST',
       function: this.slackEventsFunction.function,
       requireAuth: false,
-      enableCors: true,
-      requestValidation: false,
+      enableCors: false,  // CORS無効化
+      requestValidation: true,
+      requestParameters: {
+        'method.request.header.X-Slack-Request-Timestamp': true,
+        'method.request.header.X-Slack-Signature': true,
+      },
     });
 
     // Add /interactive endpoint
@@ -201,8 +286,12 @@ export class ZenginDataUpdaterStack extends cdk.Stack {
       method: 'POST',
       function: this.slackInteractiveFunction.function,
       requireAuth: false,
-      enableCors: true,
-      requestValidation: false,
+      enableCors: false,  // CORS無効化
+      requestValidation: true,
+      requestParameters: {
+        'method.request.header.X-Slack-Request-Timestamp': true,
+        'method.request.header.X-Slack-Signature': true,
+      },
     });
 
     // Add health check endpoint
@@ -240,11 +329,14 @@ export class ZenginDataUpdaterStack extends cdk.Stack {
     // 共通環境変数
     const commonEnvironment = {
       DIFF_TABLE_NAME: this.diffTable.tableName,
+      AUDIT_TABLE_NAME: this.auditTable.tableName,
       DATABASE_SECRET_ARN: config.database.secretArn,
       ENVIRONMENT: config.env,
       SLACK_BOT_TOKEN: zenginConfig.slack.botTokenSecret,
       SLACK_CHANNEL_ID: zenginConfig.slack.channelId,
       S3_BUCKET_NAME: diffDataBucket.bucketName,
+      ALLOWED_SLACK_TEAM_IDS: zenginConfig.slack.allowedTeamIds?.join(',') || '',
+      AUTHORIZED_USER_IDS: zenginConfig.slack.authorizedUserIds?.join(',') || '',
       // VPCエンドポイント直接参照（VPC Constructで作成されたもの、dev環境時のみ）
       // 注: Secrets Managerは既存VPCに手動作成済みのエンドポイントを使用するため削除
       // VPC_ENDPOINT_SECRETS_MANAGER: vpcConstruct.vpcEndpoints.secretsManager?.vpcEndpointId || '',
@@ -381,6 +473,10 @@ export class ZenginDataUpdaterStack extends cdk.Stack {
     this.diffTable.grantReadWriteData(this.diffProcessorFunction.function);
     this.diffTable.grantReadWriteData(this.callbackHandlerFunction.function);
     this.diffTable.grantReadWriteData(this.diffExecutorFunction.function); // UpdateItem権限が必要
+    
+    // 監査テーブルへの書き込み権限
+    this.auditTable.grantWriteData(this.slackInteractiveFunction.function);
+    this.auditTable.grantWriteData(this.slackEventsFunction.function);
 
     // S3アクセス権限
     this.diffDataBucket.grantReadWrite(this.diffProcessorFunction.function);

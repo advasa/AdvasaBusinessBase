@@ -24,6 +24,7 @@ export interface LambdaIntegrationConfig {
   requireAuth?: boolean;
   enableCors?: boolean;
   requestValidation?: boolean;
+  requestParameters?: { [key: string]: boolean };
 }
 
 export class ApiGatewayConstruct extends Construct {
@@ -136,6 +137,7 @@ export class ApiGatewayConstruct extends Construct {
       requireAuth = false,
       enableCors = true,
       requestValidation = false,
+      requestParameters,
     } = integrationConfig;
 
     // リソースパスを解析して作成
@@ -152,12 +154,17 @@ export class ApiGatewayConstruct extends Construct {
       authorizationType: requireAuth ? apigateway.AuthorizationType.IAM : apigateway.AuthorizationType.NONE,
     };
 
+    // リクエストパラメータを設定
+    if (requestParameters) {
+      Object.assign(methodOptions, { requestParameters });
+    }
+
     // リクエスト検証を設定
     if (requestValidation) {
       const validator = new apigateway.RequestValidator(this, `${path.replace(/\//g, '-')}-${method}-Validator`, {
         restApi: this.api,
         validateRequestBody: true,
-        validateRequestParameters: true,
+        validateRequestParameters: !!requestParameters,
       });
       Object.assign(methodOptions, { requestValidator: validator });
     }
